@@ -38,6 +38,36 @@ body {
   opacity: 1;
 }
 
+.ai-button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+
+  background: #e60000;
+  color: white;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 9999;
+
+  /* Smooth resize behavior */
+  transition: right 0.3s ease, bottom 0.3s ease, transform 0.2s ease;
+}
+@media (max-width: 768px) {
+  .ai-button {
+    right: 16px;
+    bottom: 16px;
+    width: 50px;
+    height: 50px;
+  }
+}
 /* Close button */
 .close-btn {
   position: absolute;
@@ -378,3 +408,65 @@ body {
 .footer button.pause {
   background: #ef4444; /* red for pause */
 }
+.disabled-btn {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.floating-icon-wrapper {
+  position: fixed;
+}
+
+/* ================= TOOLTIP ================= */
+.help-tooltip {
+  position: absolute;
+  bottom: 70px; /* distance from AI button */
+  right: 0;
+  background: #2563eb;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  width: 200px;
+  font-size: 13px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 3000;
+}
+
+.help-tooltip.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.help-tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  right: 16px;
+  border-width: 6px 6px 0;
+  border-style: solid;
+  border-color: #2563eb transparent transparent transparent;
+}
+
+.tooltip-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
