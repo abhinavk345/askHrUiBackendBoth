@@ -1,492 +1,463 @@
-import { useState, useEffect, useRef } from "react";
-import "../askHrComponent/AskAI.css";
-import askLogo from "../images/askLogos.png";
-import Menu from "./Menu";
+* {
+  box-sizing: border-box;
+}
 
-// Import sound files
-import sendSound from "../sounds/send.mp3";
-import receiveSound from "../sounds/whatsappSend.mp3";
+body {
+  margin: 0;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #f4f6f8;
+}
 
-function AskAI() {
-  const [showTooltip, setShowTooltip] = useState(true);
-  const [tooltipText, setTooltipText] = useState("Need help?");
-  const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState("");
-  const [chat, setChat] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [abortController, setAbortController] = useState(null);
+/* Root */
+.app-root {
+  position: fixed;
+  inset: 0; 
+}
 
-  const [username, setUsername] = useState("");
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [hasExitedChat, setHasExitedChat] = useState(false);
+/* ================= CONTAINER ================= */
+.container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 25vw;
+  min-width: 340px;
+  max-width: 420px;
+  height: 100vh;
+  background: #ffffff;
+  box-shadow: -12px 0 30px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%) scale(0.95);
+  opacity: 0;
+  transition: transform 0.45s ease, opacity 0.35s ease;
+  pointer-events: auto;
+}
 
-  const [tempUsername, setTempUsername] = useState("");
-  const [tempEmail, setTempEmail] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
+.container.open {
+  transform: translateX(0) scale(1);
+  opacity: 1;
+}
 
-  const [undoStack, setUndoStack] = useState([]);
-  const [redoStack, setRedoStack] = useState([]); 
-  // Draggable AI button
-  const [aiPos, setAiPos] = useState({ x: window.innerWidth - 80, y: window.innerHeight - 100 });
-  const [dragging, setDragging] = useState(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const dragThreshold = 5;
+.ai-button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
 
-  const chatEndRef = useRef(null);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
 
-  const messages = [
-  "Need help?",
-  "I'm here 👋",
-  "Ask me anything!",
-  "Need more help?",
-];
+  background: #e60000;
+  color: white;
+  cursor: pointer;
 
-const showTooltipAgain = () => {
-  const random = messages[Math.floor(Math.random() * messages.length)];
-  setTooltipText(random);
-  //setShowTooltip(true);
-  showTooltipAgain();
-};
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-const closeChat = () => {
-  setHasExitedChat(true);    
-  setShowUserModal(false);  
-  setOpen(false);
+  z-index: 9999;
 
-  setTooltipText("Need more help?");
-  setShowTooltip(true);
-};
-
-const handleNewChat = () => {
-  pushUndoStack(chat);
-  setChat([]);
-  setTempUsername("");
-  setHasExitedChat(false); // ✅ allow modal again
-  setShowUserModal(true);
-};
-
-useEffect(() => {
-  if (!showTooltip) return;
-
-  const timer = setTimeout(() => {
-    setShowTooltip(false);
-  }, 5000);
-
-  return () => clearTimeout(timer);
-}, [showTooltip]);
-
-  /* Scroll to bottom */
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat, loading]);
-
-  /* ================= DRAGGABLE BUTTON ================= */
-  const handleMouseDown = (e) => {
-    setDragging(true);
-    dragStart.current = { x: e.clientX, y: e.clientY };
-  };
-
-  const handleMouseMove = (e) => {
-    if (!dragging) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    if (Math.abs(dx) > dragThreshold || Math.abs(dy) > dragThreshold) {
-      setAiPos((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-      dragStart.current = { x: e.clientX, y: e.clientY };
-    }
-  };
-
-  const handleMouseUp = () => setDragging(false); 
-
-  useEffect(() => {
-  if (!hasExitedChat && !username) {
-    setShowUserModal(true);
+  /* Smooth resize behavior */
+  transition: right 0.3s ease, bottom 0.3s ease, transform 0.2s ease;
+}
+@media (max-width: 768px) {
+  .ai-button {
+    right: 16px;
+    bottom: 16px;
+    width: 50px;
+    height: 50px;
   }
-  }, [username, hasExitedChat]);
+}
+/* Close button */
+.close-btn {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 18px;
+  cursor: pointer;
+}
 
-  useEffect(() => {
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [dragging]);
+/* ================= HEADER ================= */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #1e0303;
+}
 
-  /* ================= SOUND EFFECTS ================= */
-  const playSound = (sound) => {
-    const audio = new Audio(sound);
-    audio.volume = 0.5;
-    audio.play();
-  };
+.icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+}
 
-  /* ================= UNDO / REDO HELPERS ================= */
-  const pushUndoStack = (prevChat) => {
-    setUndoStack((prev) => [...prev, JSON.parse(JSON.stringify(prevChat))]);
-    setRedoStack([]); // clear redo on new change
-  };
+.icon img {
+  width: 150%;
+  height: 100%;
+  object-fit: contain;
+}
 
-  const handleUndo = () => {
-    if (undoStack.length === 0) return;
-    const prev = undoStack[undoStack.length - 1];
-    setRedoStack((prevRedo) => [...prevRedo, JSON.parse(JSON.stringify(chat))]);
-    setChat(prev);
-    setUndoStack((prev) => prev.slice(0, prev.length - 1));
-  };
+.title {
+  font-size: 15px;
+  font-weight: 600;
+}
 
-  const handleRedo = () => {
-    if (redoStack.length === 0) return;
-    const next = redoStack[redoStack.length - 1];
-    setUndoStack((prevUndo) => [...prevUndo, JSON.parse(JSON.stringify(chat))]);
-    setChat(next);
-    setRedoStack((prev) => prev.slice(0, prev.length - 1));
-  };
+/* ================= MENU BAR ================= */
+.menu-bar {
+  display: flex;
+  gap: 1px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #ddd;
+  background: #f9fafb;
+  font-size: 13px;
+}
 
-  const copyLastAI = () => {
-    const lastAI = chat.filter((msg) => msg.role === "ai").pop();
-    if (lastAI) {
-      navigator.clipboard.writeText(lastAI.text);
-      alert("Last AI response copied to clipboard!");
-    }
-  };
+.menu {
+  position: relative;
+  display: inline-block; /* Ensure it doesn’t collapse */
+  z-index: 300;
+}
 
-  /* ================= BACKEND CALL ================= */
-  const callBackend = async () => {
-    if (!message.trim() || showUserModal) return;
+.menu-title {
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none; /* Prevent text selection on click */
+  display: inline-block;
+  background: #f9fafb;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
 
-    pushUndoStack(chat);
+.menu:hover .menu-title {
+  background: #e5e7eb;
+  border-radius: 4px;
+}
+.menu-dropdown {
+  position: absolute;
+  top: 100%; /* directly below menu-title */
+  left: 0;
+  min-width: 150px;
+  background: white;
+  border: 1px solid #ddd;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15);
+  z-index: 500; /* above everything else */
+}
+ 
 
-    const time = new Date().toLocaleTimeString();
-    const userText = message;
-    setMessage("");
+.menu-item {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.menu-title:hover {
+  background: #e5e7eb;
+}
 
-    setChat((prev) => [...prev, { role: "user", text: userText, time }]);
-    playSound(sendSound);
+.menu-item:hover {
+  background: #f3f4f6;
+}
 
-    const controller = new AbortController();
-    setAbortController(controller);
-    setLoading(true);
+/* ================= RESPONSE ================= */
+.response-area {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+}
 
-    try {
-      const res = await fetch(
-        `http://localhost:9091/askhr/api/v1/chat?message=${encodeURIComponent(userText)}`,
-        { signal: controller.signal }
-      );
+/* ================= CHAT ================= */
+.chat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let aiText = "";
+.chat-bubble {
+  max-width: 85%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  animation: fadeIn 0.3s ease-in-out;
+}
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+.chat-bubble.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: white;
+}
 
-        aiText += decoder.decode(value, { stream: true });
+.chat-bubble.ai {
+  align-self: flex-start;
+  background: #f1f5f9;
+  color: #111827;
+}
 
-        setChat((prev) => {
-          const updated = [...prev];
-          if (updated[updated.length - 1]?.role === "ai") {
-            updated[updated.length - 1].text = aiText;
-          } else {
-            updated.push({ role: "ai", text: aiText, time: new Date().toLocaleTimeString() });
-          }
-          return updated;
-        });
-      }
+.timestamp {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-top: 4px;
+  text-align: right;
+}
 
-      playSound(receiveSound);
-    } catch (err) {
-      if (err.name === "AbortError") {
-        setChat((prev) => [...prev, { role: "ai", text: "❌ Response stopped.", time: new Date().toLocaleTimeString() }]);
-      } else {
-        setChat((prev) => [
-          ...prev,
-          {
-            role: "ai",
-            text: "❌ Error occurred. Click to retry.",
-            time: new Date().toLocaleTimeString(),
-            failed: true,
-            originalMessage: userText,
-          },
-        ]);
-      }
-    } finally {
-      setLoading(false);
-      setAbortController(null);
-    }
-  };
+/* ================= TYPING ================= */
+.typing {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+}
 
-  /* ================= RETRY MESSAGE ================= */
-  const retryMessage = (msg) => {
-    pushUndoStack(chat);
-    setMessage(msg);
-    setChat((prev) => prev.filter((m) => m.originalMessage !== msg));
-    callBackend();
-  };
+.dot {
+  width: 6px;
+  height: 6px;
+  background: #6b7280;
+  border-radius: 50%;
+  animation: blink 1.4s infinite both;
+}
 
-  /* ================= USER MODAL ================= */
-  const saveUsername = () => {
-    if (!tempUsername.trim()) return;
-    setUsername(tempUsername);
-    setShowUserModal(false);
-    setChat([
-      {
-        role: "ai",
-        text: `Hello ${tempUsername}, good morning 👋\nHow can I help you today?`,
-        time: new Date().toLocaleTimeString(),
-      },
-    ]);
-  };
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
 
-  const handleKeyDown = (e) => {
-    if (e.ctrlKey && e.key === "z") handleUndo();
-    if (e.ctrlKey && e.key === "y") handleRedo();
-    if (e.ctrlKey && e.key === "c") copyLastAI();
-    if (e.key === "Enter") {
-      if (showUserModal) saveUsername();
-      else callBackend();
-    }
-  };
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
-  /* ================= FILE MENU FUNCTIONS ================= */
+@keyframes blink {
+  0% { opacity: 0.2; }
+  20% { opacity: 1; }
+  100% { opacity: 0.2; }
+}
 
-  const handleClearChat = () => {
-    pushUndoStack(chat);
-    setChat([]);
-  };
+/* ================= MODAL ================= */
+.inline-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  background: #ffffff;
+  padding: 24px 28px;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: center;
+  animation: modalFadeIn 0.35s forwards;
+  width: 90%;
+  max-width: 360px;
+  z-index: 1500;
 
-  const handleExportChat = () => {
-    const content = chat.map((msg) => `${msg.role.toUpperCase()}: ${msg.text}`).join("\n");
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "chat.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+}
+.inline-modal h4 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: #111827;
+}
 
-   const handleExitChat = () => {
-    setTempUsername("");
-    setTempEmail("");
-    pushUndoStack(chat);
-    setChat([]);
-   // setOpen(false);
-   closeChat();
-     
-  };
+.inline-modal input {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s, box-shadow 0.2s;
+}
 
-  const handleSaveSession = () => {
-    localStorage.setItem("chatSession", JSON.stringify(chat));
-    alert("Session saved!");
-  };
+.inline-modal input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
 
-  const handleLoadSession = () => {
-    const content = localStorage.getItem("chatSession");
-    if (content) {
-      setChat(JSON.parse(content));
-      alert("Session loaded!");
-    } else {
-      alert("No saved session found.");
-    }
-  };
+.inline-modal button {
+  padding: 12px 16px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.25s, transform 0.2s;
+}
 
-  /* ================= MENU ITEMS ================= */
-  const fileMenuItems = [
-    { label: "New Chat", onClick: handleNewChat },
-    { label: "Clear Chat", onClick: handleClearChat },
-    { label: "Export Chat", onClick: handleExportChat },
-    { label: "Exit Chat", onClick: handleExitChat },
-  ];
+.inline-modal button:hover {
+  background: #6366f1;
+  transform: translateY(-1px);
+}
 
-  const editMenuItems = [
-    { label: "Undo", onClick: handleUndo },
-    { label: "Redo", onClick: handleRedo },
-    { label: "Copy Last AI Response", onClick: copyLastAI },
-  ];
+.inline-modal button:active {
+  transform: translateY(1px);
+}
 
-  const searchMenuItems = [
-    { label: "Find in Chat", onClick: () => setShowSearch(true) },
-    { label: "Find Next", onClick: () => alert("Find Next clicked!") },
-  ];
+/* ================= FOOTER ================= */
+.footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #eee;
+}
 
-  const sessionMenuItems = [
-    { label: "Save Session", onClick: handleSaveSession },
-    { label: "Load Session", onClick: handleLoadSession },
-    { label: "Clear Session", onClick: handleClearChat },
-  ];
+.footer input {
+  flex: 1;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  outline: none;
+  font-size: 14px;
+  transition: border 0.2s, box-shadow 0.2s;
+}
 
-  const helpMenuItems = [
-    { label: "Documentation", onClick: () => window.open("https://example.com/docs", "_blank") },
-    { label: "About", onClick: () => alert("HR Help Assistant v1.0 by Abhinav Kumar") },
-  ];
+.footer input:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+}
 
-  /* ================= JSX ================= */
-if (!open) {
-  return (
-    <div
-      className="ai-tooltip-wrapper"
-      style={{
-        left: aiPos.x,
-        top: aiPos.y,
-        position: "fixed",
-      }}
-      onMouseDown={handleMouseDown}
-      onClick={() => {
-        if (!dragging) {
-          if (!username) setShowUserModal(true);
-          setOpen(true);
-        }
-      }}
-    >
-      {/* Tooltip */}
-      {showTooltip && (
-        <div className="ai-tooltip">
-          <button
-            className="ai-tooltip-close"
-            onClick={(e) => {
-              e.stopPropagation(); // prevent opening chat
-              setShowTooltip(false);
-            }}
-          >
-            ✕
-          </button>
+.footer input::placeholder {
+  color: #9ca3af;
+}
+.footer button {
+  padding: 10px 16px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+}
 
-          <div className="ai-tooltip-title">{tooltipText}</div>
-            <div className="ai-tooltip-sub">
-              Get instant answers to your queries.
-            </div>
+.footer button:disabled {
+  opacity: 0.6;
+}
 
-          <span className="ai-tooltip-arrow" />
-        </div>
-      )}
+/* ================= FLOATING ICON ================= */
+.floating-icon {
+  position: fixed;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #4f46e5;
+  color: white;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  animation: pulse 1.5s infinite;
+  user-select: none;
+}
 
-      {/* AI Button */}
-      <div className="floating-icon">AI</div>
-    </div>
-  );
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7); }
+  50% { transform: scale(1.1); box-shadow: 0 0 20px 5px rgba(79, 70, 229, 0.5); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7); }
 }
 
 
-  return (
-    <div className="app-root" onKeyDown={handleKeyDown} tabIndex={0}>
-      <div className="container open">
-        <div className="close-btn" onClick={closeChat}>✕</div>
-
-        {/* HEADER */}
-        <div className="header">
-          <div className="icon"><img src={askLogo} alt="AI" /></div>
-          <div className="title">HR Help Assistant {username && `(${username})`}</div>
-        </div>
-
-        {/* MENU BAR */}
-        <div className="menu-bar">
-          <Menu title="File" items={fileMenuItems} />
-          <Menu title="Edit" items={editMenuItems} />
-          <Menu title="Search" items={searchMenuItems} />
-          <Menu title="Session" items={sessionMenuItems} />
-          <Menu title="Help" items={helpMenuItems} />
-          <Menu title="..." items={helpMenuItems} />
-        </div>
-
-        {/* RESPONSE AREA */}
-        <div className="response-area">
-          {showUserModal && (
-            <div className="inline-modal">
-              <h4>Welcome! 👋</h4>
-              <p>Please enter Name to start chat.</p>
-              <input
-                placeholder="Your Name"
-                value={tempUsername}
-                onChange={(e) => setTempUsername(e.target.value)}
-                onKeyDown={handleKeyDown}
-                 required
-              />
-               <input
-                type="email"
-                placeholder="Your Email <Optional>"
-                value={tempEmail}
-                onChange={(e) => setTempEmail(e.target.value)}
-                onKeyDown={handleKeyDown}
-/>              <div className="footer-note">Note:Email keep as Id and chat saved in DB.</div>
-            
-                 <button
-                  onClick={saveUsername}
-                  disabled={!tempUsername.trim()}
-                  className={!tempUsername.trim() ? "disabled-btn" : ""}
-                >
-                  Continue
-                </button>
-            </div>
-          )}
-
-          {showSearch && (
-            <div className="inline-modal">
-              <h4>Search Chat 🔍</h4>
-              <input
-                placeholder="Enter keyword"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const keyword = e.target.value.toLowerCase();
-                    const found = chat.find((msg) => msg.text.toLowerCase().includes(keyword));
-                    if (found) alert(`Found: ${found.text}`);
-                    else alert("No match found");
-                  }
-                }}
-              />
-              <button onClick={() => setShowSearch(false)}>Close</button>
-            </div>
-          )}
-
-          {!showUserModal && !showSearch && (
-            <div className="chat-body">
-              {chat.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`chat-bubble ${msg.role} ${msg.failed ? "retry" : ""}`}
-                  onClick={() => msg.failed && retryMessage(msg.originalMessage)}
-                >
-                  {msg.text}
-                  <div className="timestamp">{msg.time}</div>
-                </div>
-              ))}
-              {loading && (
-                <div className="chat-bubble ai">
-                  <div className="typing">
-                    <span className="dot" />
-                    <span className="dot" />
-                    <span className="dot" />
-                  </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-          )}
-        </div>
-
-        {/* FOOTER */}
-        <div className="footer">
-          <input
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="How can I help you today?"
-          />
-          <button
-            className={loading ? "pause" : ""}
-            onClick={() => {
-              if (loading && abortController) abortController.abort();
-              else callBackend();
-            }}
-          >
-            {loading ? "Pause" : "Ask"}
-          </button>
-        </div>
-
-        <div className="footer-note">&copy; Developed by Abhinav Kumar @ 2026</div>
-      </div>
-    </div>
-  );
+/* ================= ANIMATION ================= */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+.chat-bubble.retry {
+  border: 1px dashed #f87171;
+  cursor: pointer;
+  background: #fee2e2; /* light red */
 }
 
-export default AskAI;
+.chat-bubble.retry:hover {
+  background: #fecaca;
+}
+.footer-note {
+  font-size: 11px;       /* smaller text */
+  color: #6b7280;        /* subtle gray */
+  text-align: center;    /* center align */
+  padding: 6px 0;        /* small padding */
+}
+
+.footer button {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  color: white;
+  background: #4f46e5; /* default Ask */
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.footer button:hover {
+  background: #eb0b43;
+}
+
+.footer button.pause {
+  background: #ef4444; /* red for pause */
+}
+.disabled-btn {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ai-tooltip-wrapper {
+  position: fixed;
+  z-index: 100000; /* higher than chat container */
+}
+/* ================= TOOLTIP ================= */ /* ================= TOOLTIP CLOSE ================= */
+
+.ai-tooltip {
+  position: absolute;
+  right: 70px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1e66ff;
+  color: #fff;
+  padding: 12px 14px;
+  border-radius: 8px;
+  min-width: 220px;
+  z-index: 100001;
+}
+
+
+/* Close button */
+.ai-tooltip-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+
+.ai-tooltip-close:hover {
+  opacity: 1;
+}
+
+/* Arrow */
+.ai-tooltip-arrow {
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 8px solid #1e66ff;
+}
