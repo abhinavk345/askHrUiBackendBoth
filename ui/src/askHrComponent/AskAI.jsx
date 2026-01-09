@@ -9,6 +9,7 @@ import receiveSound from "../sounds/whatsappSend.mp3";
 
 function AskAI() {
   const [showTooltip, setShowTooltip] = useState(true);
+  const [tooltipText, setTooltipText] = useState("Need help?");
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
@@ -33,7 +34,38 @@ function AskAI() {
 
   const chatEndRef = useRef(null);
 
-  useEffect(() => {
+  const messages = [
+  "Need help?",
+  "I'm here 👋",
+  "Ask me anything!",
+  "Need more help?",
+];
+
+const showTooltipAgain = () => {
+  const random = messages[Math.floor(Math.random() * messages.length)];
+  setTooltipText(random);
+  //setShowTooltip(true);
+  showTooltipAgain();
+};
+
+const closeChat = () => {
+  setHasExitedChat(true);    
+  setShowUserModal(false);  
+  setOpen(false);
+
+  setTooltipText("Need more help?");
+  setShowTooltip(true);
+};
+
+const handleNewChat = () => {
+  pushUndoStack(chat);
+  setChat([]);
+  setTempUsername("");
+  setHasExitedChat(false); // ✅ allow modal again
+  setShowUserModal(true);
+};
+
+useEffect(() => {
   if (!showTooltip) return;
 
   const timer = setTimeout(() => {
@@ -217,12 +249,6 @@ function AskAI() {
   };
 
   /* ================= FILE MENU FUNCTIONS ================= */
-  const handleNewChat = () => {
-    pushUndoStack(chat);
-    setChat([]);
-    setTempUsername("");
-    setShowUserModal(true);
-  };
 
   const handleClearChat = () => {
     pushUndoStack(chat);
@@ -245,7 +271,8 @@ function AskAI() {
     setTempEmail("");
     pushUndoStack(chat);
     setChat([]);
-    setOpen(false);
+   // setOpen(false);
+   closeChat();
      
   };
 
@@ -325,10 +352,10 @@ if (!open) {
             ✕
           </button>
 
-          <div className="ai-tooltip-title">Need help?</div>
-          <div className="ai-tooltip-sub">
-            Get instant answers to your queries.
-          </div>
+          <div className="ai-tooltip-title">{tooltipText}</div>
+            <div className="ai-tooltip-sub">
+              Get instant answers to your queries.
+            </div>
 
           <span className="ai-tooltip-arrow" />
         </div>
@@ -344,7 +371,7 @@ if (!open) {
   return (
     <div className="app-root" onKeyDown={handleKeyDown} tabIndex={0}>
       <div className="container open">
-        <div className="close-btn" onClick={() => setOpen(false)}>✕</div>
+        <div className="close-btn" onClick={closeChat}>✕</div>
 
         {/* HEADER */}
         <div className="header">
