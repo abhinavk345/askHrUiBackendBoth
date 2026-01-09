@@ -1,9 +1,7 @@
-
 import { useState, useEffect, useRef } from "react";
 import "../askHrComponent/AskAI.css";
 import askLogo from "../images/askLogos.png";
 import Menu from "./Menu";
-
 // Import sound files
 import sendSound from "../sounds/send.mp3";
 import receiveSound from "../sounds/whatsappSend.mp3";
@@ -57,13 +55,6 @@ useEffect(() => {
       return updated;
     });
   }, [chat, username]);
-
-const showTooltipAgain = () => {
-  const random = messages[Math.floor(Math.random() * messages.length)];
-  setTooltipText(random);
-  //setShowTooltip(true);
-  showTooltipAgain();
-};
 
 const closeChat = () => {
   setHasExitedChat(true);    
@@ -412,8 +403,7 @@ useEffect(() => {
     setChat([]);
     setShowUserModal(true);
   }
-};
-  
+}; 
   /* ================= JSX ================= */
 if (!open) {
   return (
@@ -502,7 +492,7 @@ if (!open) {
                 value={tempEmail}
                 onChange={(e) => setTempEmail(e.target.value)}
                 onKeyDown={handleKeyDown}
-/>              <div className="footer-note">Note:Email keep as Id and chat saved in DB.</div>
+/>              <div className="footer-note">Note: Provide Email kept as Id and chat saved in DB else managed by Cache.</div>
             
                  <button
                   onClick={saveUsername}
