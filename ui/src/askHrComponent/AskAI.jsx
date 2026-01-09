@@ -8,6 +8,7 @@ import sendSound from "../sounds/send.mp3";
 import receiveSound from "../sounds/whatsappSend.mp3";
 
 function AskAI() {
+  const [showTooltip, setShowTooltip] = useState(true);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [chat, setChat] = useState([]);
@@ -31,6 +32,16 @@ function AskAI() {
   const dragThreshold = 5;
 
   const chatEndRef = useRef(null);
+
+  useEffect(() => {
+  if (!showTooltip) return;
+
+  const timer = setTimeout(() => {
+    setShowTooltip(false);
+  }, 5000);
+
+  return () => clearTimeout(timer);
+}, [showTooltip]);
 
   /* Scroll to bottom */
   useEffect(() => {
@@ -284,23 +295,51 @@ function AskAI() {
   ];
 
   /* ================= JSX ================= */
-  if (!open) {
-    return (
-      <div
-        className="floating-icon"
-        style={{ left: aiPos.x, top: aiPos.y, position: "fixed" }}
-        onMouseDown={handleMouseDown}
-        onClick={() => {
-          if (!dragging) {
-            if (!username || chat.length === 0) setShowUserModal(true);
-            setOpen(true);
-          }
-        }}
-      >
-        AI
-      </div>
-    );
-  }
+if (!open) {
+  return (
+    <div
+      className="ai-tooltip-wrapper"
+      style={{
+        left: aiPos.x,
+        top: aiPos.y,
+        position: "fixed",
+      }}
+      onMouseDown={handleMouseDown}
+      onClick={() => {
+        if (!dragging) {
+          if (!username) setShowUserModal(true);
+          setOpen(true);
+        }
+      }}
+    >
+      {/* Tooltip */}
+      {showTooltip && (
+        <div className="ai-tooltip">
+          <button
+            className="ai-tooltip-close"
+            onClick={(e) => {
+              e.stopPropagation(); // prevent opening chat
+              setShowTooltip(false);
+            }}
+          >
+            ✕
+          </button>
+
+          <div className="ai-tooltip-title">Need help?</div>
+          <div className="ai-tooltip-sub">
+            Get instant answers to your queries.
+          </div>
+
+          <span className="ai-tooltip-arrow" />
+        </div>
+      )}
+
+      {/* AI Button */}
+      <div className="floating-icon">AI</div>
+    </div>
+  );
+}
+
 
   return (
     <div className="app-root" onKeyDown={handleKeyDown} tabIndex={0}>
