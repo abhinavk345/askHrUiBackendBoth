@@ -16,9 +16,14 @@ function AskAI() {
 
   const [username, setUsername] = useState("");
   const [showUserModal, setShowUserModal] = useState(false);
+  const [hasExitedChat, setHasExitedChat] = useState(false);
+
   const [tempUsername, setTempUsername] = useState("");
+  const [tempEmail, setTempEmail] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
+  const [undoStack, setUndoStack] = useState([]);
+  const [redoStack, setRedoStack] = useState([]); 
   // Draggable AI button
   const [aiPos, setAiPos] = useState({ x: window.innerWidth - 80, y: window.innerHeight - 100 });
   const [dragging, setDragging] = useState(false);
@@ -48,7 +53,13 @@ function AskAI() {
     }
   };
 
-  const handleMouseUp = () => setDragging(false);
+  const handleMouseUp = () => setDragging(false); 
+
+  useEffect(() => {
+  if (!hasExitedChat && !username) {
+    setShowUserModal(true);
+  }
+  }, [username, hasExitedChat]);
 
   useEffect(() => {
     window.addEventListener("mousemove", handleMouseMove);
@@ -66,9 +77,41 @@ function AskAI() {
     audio.play();
   };
 
+  /* ================= UNDO / REDO HELPERS ================= */
+  const pushUndoStack = (prevChat) => {
+    setUndoStack((prev) => [...prev, JSON.parse(JSON.stringify(prevChat))]);
+    setRedoStack([]); // clear redo on new change
+  };
+
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setRedoStack((prevRedo) => [...prevRedo, JSON.parse(JSON.stringify(chat))]);
+    setChat(prev);
+    setUndoStack((prev) => prev.slice(0, prev.length - 1));
+  };
+
+  const handleRedo = () => {
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setUndoStack((prevUndo) => [...prevUndo, JSON.parse(JSON.stringify(chat))]);
+    setChat(next);
+    setRedoStack((prev) => prev.slice(0, prev.length - 1));
+  };
+
+  const copyLastAI = () => {
+    const lastAI = chat.filter((msg) => msg.role === "ai").pop();
+    if (lastAI) {
+      navigator.clipboard.writeText(lastAI.text);
+      alert("Last AI response copied to clipboard!");
+    }
+  };
+
   /* ================= BACKEND CALL ================= */
   const callBackend = async () => {
     if (!message.trim() || showUserModal) return;
+
+    pushUndoStack(chat);
 
     const time = new Date().toLocaleTimeString();
     const userText = message;
@@ -111,10 +154,7 @@ function AskAI() {
       playSound(receiveSound);
     } catch (err) {
       if (err.name === "AbortError") {
-        setChat((prev) => [
-          ...prev,
-          { role: "ai", text: "❌ Response stopped.", time: new Date().toLocaleTimeString() },
-        ]);
+        setChat((prev) => [...prev, { role: "ai", text: "❌ Response stopped.", time: new Date().toLocaleTimeString() }]);
       } else {
         setChat((prev) => [
           ...prev,
@@ -135,6 +175,7 @@ function AskAI() {
 
   /* ================= RETRY MESSAGE ================= */
   const retryMessage = (msg) => {
+    pushUndoStack(chat);
     setMessage(msg);
     setChat((prev) => prev.filter((m) => m.originalMessage !== msg));
     callBackend();
@@ -155,6 +196,9 @@ function AskAI() {
   };
 
   const handleKeyDown = (e) => {
+    if (e.ctrlKey && e.key === "z") handleUndo();
+    if (e.ctrlKey && e.key === "y") handleRedo();
+    if (e.ctrlKey && e.key === "c") copyLastAI();
     if (e.key === "Enter") {
       if (showUserModal) saveUsername();
       else callBackend();
@@ -163,11 +207,17 @@ function AskAI() {
 
   /* ================= FILE MENU FUNCTIONS ================= */
   const handleNewChat = () => {
+    pushUndoStack(chat);
     setChat([]);
     setTempUsername("");
     setShowUserModal(true);
   };
-  const handleClearChat = () => setChat([]);
+
+  const handleClearChat = () => {
+    pushUndoStack(chat);
+    setChat([]);
+  };
+
   const handleExportChat = () => {
     const content = chat.map((msg) => `${msg.role.toUpperCase()}: ${msg.text}`).join("\n");
     const blob = new Blob([content], { type: "text/plain" });
@@ -178,14 +228,21 @@ function AskAI() {
     a.click();
     URL.revokeObjectURL(url);
   };
-  const copyLastAI = () => {
-    const lastAI = chat.filter((msg) => msg.role === "ai").pop();
-    if (lastAI) navigator.clipboard.writeText(lastAI.text);
+
+   const handleExitChat = () => {
+    setTempUsername("");
+    setTempEmail("");
+    pushUndoStack(chat);
+    setChat([]);
+    setOpen(false);
+     
   };
+
   const handleSaveSession = () => {
     localStorage.setItem("chatSession", JSON.stringify(chat));
     alert("Session saved!");
   };
+
   const handleLoadSession = () => {
     const content = localStorage.getItem("chatSession");
     if (content) {
@@ -201,21 +258,26 @@ function AskAI() {
     { label: "New Chat", onClick: handleNewChat },
     { label: "Clear Chat", onClick: handleClearChat },
     { label: "Export Chat", onClick: handleExportChat },
+    { label: "Exit Chat", onClick: handleExitChat },
   ];
+
   const editMenuItems = [
-    { label: "Undo", onClick: () => alert("Undo clicked!") },
-    { label: "Redo", onClick: () => alert("Redo clicked!") },
+    { label: "Undo", onClick: handleUndo },
+    { label: "Redo", onClick: handleRedo },
     { label: "Copy Last AI Response", onClick: copyLastAI },
   ];
+
   const searchMenuItems = [
     { label: "Find in Chat", onClick: () => setShowSearch(true) },
     { label: "Find Next", onClick: () => alert("Find Next clicked!") },
   ];
+
   const sessionMenuItems = [
     { label: "Save Session", onClick: handleSaveSession },
     { label: "Load Session", onClick: handleLoadSession },
     { label: "Clear Session", onClick: handleClearChat },
   ];
+
   const helpMenuItems = [
     { label: "Documentation", onClick: () => window.open("https://example.com/docs", "_blank") },
     { label: "About", onClick: () => alert("HR Help Assistant v1.0 by Abhinav Kumar") },
@@ -241,7 +303,7 @@ function AskAI() {
   }
 
   return (
-    <div className="app-root">
+    <div className="app-root" onKeyDown={handleKeyDown} tabIndex={0}>
       <div className="container open">
         <div className="close-btn" onClick={() => setOpen(false)}>✕</div>
 
@@ -258,6 +320,7 @@ function AskAI() {
           <Menu title="Search" items={searchMenuItems} />
           <Menu title="Session" items={sessionMenuItems} />
           <Menu title="Help" items={helpMenuItems} />
+          <Menu title="..." items={helpMenuItems} />
         </div>
 
         {/* RESPONSE AREA */}
@@ -265,14 +328,29 @@ function AskAI() {
           {showUserModal && (
             <div className="inline-modal">
               <h4>Welcome! 👋</h4>
-              <p>Please enter your name to start chatting</p>
+              <p>Please enter Name to start chat.</p>
               <input
                 placeholder="Your Name"
                 value={tempUsername}
                 onChange={(e) => setTempUsername(e.target.value)}
                 onKeyDown={handleKeyDown}
+                 required
               />
-              <button onClick={saveUsername}>Continue</button>
+               <input
+                type="email"
+                placeholder="Your Email <Optional>"
+                value={tempEmail}
+                onChange={(e) => setTempEmail(e.target.value)}
+                onKeyDown={handleKeyDown}
+/>              <div className="footer-note">Note:Email keep as Id and chat saved in DB.</div>
+            
+                 <button
+                  onClick={saveUsername}
+                  disabled={!tempUsername.trim()}
+                  className={!tempUsername.trim() ? "disabled-btn" : ""}
+                >
+                  Continue
+                </button>
             </div>
           )}
 
